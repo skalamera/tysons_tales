@@ -505,3 +505,13 @@ This is a significant project, so breaking it down into these manageable steps w
 
 Remember to keep the tone positive and encouraging in the app itself, as it's for children! Good luck, this sounds like a very rewarding app to build! Let me know if you'd like to dive deeper into any specific part.
 """
+
+import os
+from dotenv import load_dotenv
+from config import OPENAI_API_KEY
+
+# Load environment variables
+load_dotenv()
+
+# Set OpenAI API key
+os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Character, StoryNode } from '../types';
 import { getUserId } from '../utils/userUtils';
+import { getApiUrl } from '../utils/api';
 
 interface StoryDisplayProps {
     character: Character;
@@ -104,14 +105,12 @@ const StoryDisplay: React.FC<StoryDisplayProps> = ({ character, theme }) => {
     const startStory = async () => {
         console.log('startStory: Setting loading to true');
         setLoading(true);
+        setError('');
         startLoadingMessages(startStoryMessages);
 
         try {
-            const response = await axios.post('/api/story/start', {
-                character: {
-                    ...character,
-                    user_id: getUserId()
-                },
+            const response = await axios.post(getApiUrl('/api/story/start'), {
+                character,
                 theme
             });
 
@@ -139,23 +138,12 @@ const StoryDisplay: React.FC<StoryDisplayProps> = ({ character, theme }) => {
         }
     };
 
-    const makeChoice = async (nextNodeId: string) => {
-        // Stop any ongoing speech when making a choice
-        if (window.speechSynthesis) {
-            window.speechSynthesis.cancel();
-            setIsPlaying(false);
-        }
-
-        console.log('makeChoice: Setting loading to true');
-        setLoading(true);
-        startLoadingMessages(continueStoryMessages);
-
+    const handleChoice = async (nextNodeId: string) => {
         try {
-            const response = await axios.post('/api/story/choice', {
-                character: {
-                    ...character,
-                    user_id: getUserId()
-                },
+            setLoading(true);
+            setError('');
+            const response = await axios.post(getApiUrl('/api/story/choice'), {
+                character,
                 theme,
                 next_node_id: nextNodeId,
                 story_progress_id: storyProgressId
@@ -352,7 +340,7 @@ const StoryDisplay: React.FC<StoryDisplayProps> = ({ character, theme }) => {
                                         <button
                                             key={index}
                                             className="btn btn-choice"
-                                            onClick={() => makeChoice(choice.next_node_id)}
+                                            onClick={() => handleChoice(choice.next_node_id)}
                                             disabled={loading}
                                         >
                                             {choice.text}

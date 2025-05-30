@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Character } from '../types';
 import { getUserId } from '../utils/userUtils';
+import { getApiUrl } from '../utils/api';
 
 interface CharacterSelectProps {
     onCharacterSelected: (character: Character) => void;
@@ -14,19 +15,22 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({ onCharacterSelected }
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     useEffect(() => {
-        loadCharacters();
+        fetchCharacters();
     }, []);
 
-    const loadCharacters = async () => {
+    const fetchCharacters = async () => {
+        setLoading(true);
         try {
-            const userId = getUserId(); // Get the user ID from localStorage
-            const response = await axios.get(`http://localhost:5000/api/characters/${userId}`);
-            setCharacters(response.data.characters);
-            setLoading(false);
-        } catch (err) {
-            setError('Failed to load characters');
+            const userId = getUserId();
+            const response = await axios.get(getApiUrl(`/api/characters/${userId}`));
+            setCharacters(response.data.characters || []);
+        } catch (error) {
+            console.error('Error fetching characters:', error);
+            setError('Failed to load characters. Please try again.');
+        } finally {
             setLoading(false);
         }
     };
@@ -39,22 +43,26 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({ onCharacterSelected }
     const handleDeleteClick = (e: React.MouseEvent, character: Character) => {
         e.stopPropagation(); // Prevent character selection when clicking delete
         setCharacterToDelete(character);
+        setShowDeleteModal(true);
     };
 
-    const confirmDelete = async () => {
-        if (!characterToDelete?.id) return;
+    const handleDelete = async () => {
+        if (!characterToDelete) return;
 
         try {
-            await axios.delete(`http://localhost:5000/api/characters/${characterToDelete.id}`);
+            await axios.delete(getApiUrl(`/api/characters/${characterToDelete.id}`));
+            // Remove the character from the list
             setCharacters(characters.filter(c => c.id !== characterToDelete.id));
+            setShowDeleteModal(false);
             setCharacterToDelete(null);
-        } catch (err) {
-            setError('Failed to delete character');
+        } catch (error) {
+            console.error('Error deleting character:', error);
+            setError('Failed to delete character. Please try again.');
         }
     };
 
     const cancelDelete = () => {
-        setCharacterToDelete(null);
+        setShowDeleteModal(false);
     };
 
     const getRoleEmoji = (role: string) => {
@@ -86,7 +94,7 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({ onCharacterSelected }
                 ) : error ? (
                     <div className="card" style={{ textAlign: 'center' }}>
                         <p className="error-message">{error}</p>
-                        <button className="btn" onClick={loadCharacters}>Try Again</button>
+                        <button className="btn" onClick={fetchCharacters}>Try Again</button>
                     </div>
                 ) : characters.length === 0 ? (
                     <div className="card" style={{ textAlign: 'center', maxWidth: '600px', margin: '0 auto' }}>
@@ -148,7 +156,7 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({ onCharacterSelected }
                 )}
 
                 {/* Delete Confirmation Modal */}
-                {characterToDelete && (
+                {showDeleteModal && characterToDelete && (
                     <div className="modal-overlay">
                         <div className="modal-content">
                             <h3>Delete Character?</h3>
@@ -157,7 +165,7 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({ onCharacterSelected }
                                 <button className="btn btn-secondary" onClick={cancelDelete}>
                                     Cancel
                                 </button>
-                                <button className="btn btn-danger" onClick={confirmDelete}>
+                                <button className="btn btn-danger" onClick={handleDelete}>
                                     Delete
                                 </button>
                             </div>

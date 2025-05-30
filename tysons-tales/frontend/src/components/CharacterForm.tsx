@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Character } from '../types';
 import { getUserId } from '../utils/userUtils';
+import { getApiUrl } from '../utils/api';
+import { v4 as uuidv4 } from 'uuid';
 
 interface CharacterFormProps {
     onCharacterSaved: (character: Character) => void;
@@ -21,6 +23,7 @@ const CharacterForm: React.FC<CharacterFormProps> = ({ onCharacterSaved }) => {
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
 
     const roles = [
         { value: 'knight', label: 'Brave Knight' },
@@ -49,24 +52,20 @@ const CharacterForm: React.FC<CharacterFormProps> = ({ onCharacterSaved }) => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-
-        if (!formData.name.trim()) {
-            setError('Please enter a character name');
-            return;
-        }
-
-        if (formData.personalities.length === 0) {
-            setError('Please select at least one personality trait');
-            return;
-        }
-
-        setLoading(true);
         setError('');
+        setSuccessMessage('');
 
         try {
-            const response = await axios.post('http://localhost:5000/api/characters', {
-                ...formData,
-                user_id: getUserId()
+            const user_id = getUserId();
+            const response = await axios.post(getApiUrl('/api/characters'), {
+                user_id,
+                name: formData.name,
+                gender: formData.gender,
+                role: formData.role,
+                age: parseInt(formData.age.toString()),
+                personalities: formData.personalities,
+                favorite_color: formData.favorite_color,
+                favorite_animal: formData.favorite_animal
             });
             const savedCharacter = response.data.character;
             onCharacterSaved(savedCharacter);

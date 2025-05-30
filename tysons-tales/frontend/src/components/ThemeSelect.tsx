@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Character, Theme } from '../types';
+import { getApiUrl } from '../utils/api';
 
 interface ThemeSelectProps {
     character: Character;
@@ -12,21 +13,23 @@ const ThemeSelect: React.FC<ThemeSelectProps> = ({ character, onThemeSelected })
     const navigate = useNavigate();
     const [themes, setThemes] = useState<Theme[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        loadThemes();
-    }, []);
+        const fetchThemes = async () => {
+            try {
+                const response = await axios.get(getApiUrl('/api/themes'));
+                setThemes(response.data.themes);
+                setLoading(false);
+            } catch (error) {
+                console.error('Error fetching themes:', error);
+                setError('Failed to load themes. Please try again.');
+                setLoading(false);
+            }
+        };
 
-    const loadThemes = async () => {
-        try {
-            const response = await axios.get('/api/themes');
-            setThemes(response.data.themes);
-            setLoading(false);
-        } catch (err) {
-            console.error('Failed to load themes:', err);
-            setLoading(false);
-        }
-    };
+        fetchThemes();
+    }, []);
 
     const selectTheme = (themeId: string) => {
         onThemeSelected(themeId);
@@ -66,6 +69,10 @@ const ThemeSelect: React.FC<ThemeSelectProps> = ({ character, onThemeSelected })
                 {loading ? (
                     <div style={{ textAlign: 'center' }}>
                         <div className="spinner"></div>
+                    </div>
+                ) : error ? (
+                    <div style={{ textAlign: 'center', color: 'red' }}>
+                        {error}
                     </div>
                 ) : (
                     <>

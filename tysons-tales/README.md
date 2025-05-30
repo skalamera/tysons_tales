@@ -127,6 +127,53 @@ tysons-tales/
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+## Deployment to Heroku
+
+### Prerequisites
+- Heroku CLI installed
+- Heroku account
+- OpenAI API key (for AI story generation features)
+
+### Deployment Steps
+
+1. **Create a new Heroku app**:
+```bash
+heroku create your-app-name
+```
+
+2. **Set environment variables**:
+```bash
+heroku config:set OPENAI_API_KEY=your_openai_api_key_here
+heroku config:set NODE_ENV=production
+```
+
+3. **Deploy to Heroku**:
+```bash
+git add .
+git commit -m "Prepare for Heroku deployment"
+git push heroku main
+```
+
+4. **View your app**:
+```bash
+heroku open
+```
+
+### Important Notes for Heroku
+
+- The app uses SQLite for the database, which works for development but has limitations on Heroku (data resets on dyno restart)
+- For production use, consider migrating to PostgreSQL
+- The `Procfile` tells Heroku to run `npm start` which builds the frontend and starts the backend
+- Static React files are served by the Express server in production
+
+### Environment Variables
+
+Create a `.env` file in the backend directory (copy from `env.example`):
+```
+OPENAI_API_KEY=your_key_here
+NODE_ENV=production
+```
+
 ## License
 
 This project is licensed under the MIT License. 

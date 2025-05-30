@@ -12,10 +12,28 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static('public'));
+
+// Serve static files from the React frontend app
+if (process.env.NODE_ENV === 'production') {
+    app.use(express.static(path.join(__dirname, '../frontend/build')));
+}
 
 // Database setup
-const db = new sqlite3.Database(path.join(__dirname, '../database/tysons_tales.db'));
+const dbPath = process.env.DATABASE_URL || path.join(__dirname, '../database/tysons_tales.db');
+
+// Create database directory if it doesn't exist
+const dbDir = path.dirname(dbPath);
+if (!require('fs').existsSync(dbDir)) {
+    require('fs').mkdirSync(dbDir, { recursive: true });
+}
+
+const db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+        console.error('Error connecting to database:', err);
+    } else {
+        console.log('Connected to database successfully');
+    }
+});
 
 // Create tables
 db.serialize(() => {
@@ -248,6 +266,13 @@ app.get('/api/themes', (req, res) => {
     ];
     res.json({ themes });
 });
+
+// Serve React app for all other routes
+if (process.env.NODE_ENV === 'production') {
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
+    });
+}
 
 // Start server
 app.listen(PORT, () => {
