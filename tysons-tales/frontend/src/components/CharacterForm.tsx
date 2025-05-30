@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Character } from '../types';
+import { getUserId } from '../utils/userUtils';
 
 interface CharacterFormProps {
     onCharacterSaved: (character: Character) => void;
@@ -13,6 +14,7 @@ const CharacterForm: React.FC<CharacterFormProps> = ({ onCharacterSaved }) => {
         name: '',
         gender: 'neutral',
         role: 'knight',
+        age: 7,
         personalities: [],
         favorite_color: '',
         favorite_animal: ''
@@ -62,7 +64,10 @@ const CharacterForm: React.FC<CharacterFormProps> = ({ onCharacterSaved }) => {
         setError('');
 
         try {
-            const response = await axios.post('http://localhost:5000/api/characters', formData);
+            const response = await axios.post('http://localhost:5000/api/characters', {
+                ...formData,
+                user_id: getUserId()
+            });
             const savedCharacter = response.data.character;
             onCharacterSaved(savedCharacter);
             navigate('/theme');
@@ -104,6 +109,19 @@ const CharacterForm: React.FC<CharacterFormProps> = ({ onCharacterSaved }) => {
                                 <option value="girl">Girl</option>
                                 <option value="boy">Boy</option>
                                 <option value="neutral">Prefer not to say</option>
+                            </select>
+                        </div>
+
+                        <div className="form-group">
+                            <label htmlFor="age">Age</label>
+                            <select
+                                id="age"
+                                value={formData.age}
+                                onChange={(e) => setFormData({ ...formData, age: parseInt(e.target.value) })}
+                            >
+                                {[3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(age => (
+                                    <option key={age} value={age}>{age} years old</option>
+                                ))}
                             </select>
                         </div>
 

@@ -4,6 +4,62 @@
     box-sizing: border-box;
 }
 
+:root {
+    /* Default purple theme */
+    --primary-color: #667eea;
+    --primary-dark: #764ba2;
+    --primary-light: #7c8ff5;
+}
+
+/* Theme variations */
+[data-theme="red"] {
+    --primary-color: #ea6666;
+    --primary-dark: #a24b4b;
+    --primary-light: #f57c7c;
+}
+
+[data-theme="green"] {
+    --primary-color: #66ea7e;
+    --primary-dark: #4ba25f;
+    --primary-light: #7cf58c;
+}
+
+[data-theme="blue"] {
+    --primary-color: #6691ea;
+    --primary-dark: #4b6aa2;
+    --primary-light: #7c9ff5;
+}
+
+[data-theme="orange"] {
+    --primary-color: #ea9166;
+    --primary-dark: #a2684b;
+    --primary-light: #f5a07c;
+}
+
+[data-theme="pink"] {
+    --primary-color: #ea66c4;
+    --primary-dark: #a24b8a;
+    --primary-light: #f57cd4;
+}
+
+[data-theme="teal"] {
+    --primary-color: #66eac4;
+    --primary-dark: #4ba28a;
+    --primary-light: #7cf5d4;
+}
+
+[data-theme="yellow"] {
+    --primary-color: #eac466;
+    --primary-dark: #a2894b;
+    --primary-light: #f5d47c;
+}
+
+[data-theme="indigo"] {
+    --primary-color: #8166ea;
+    --primary-dark: #5c4ba2;
+    --primary-light: #947cf5;
+}
+
 body {
     margin: 0;
     font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -11,7 +67,7 @@ body {
         sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
     min-height: 100vh;
     color: #333;
 }
@@ -85,7 +141,7 @@ select {
 input[type="text"]:focus,
 select:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: var(--primary-color);
 }
 
 /* Checkbox styles */
@@ -108,7 +164,7 @@ select:focus {
 }
 
 .checkbox-item:hover {
-    border-color: #667eea;
+    border-color: var(--primary-color);
 }
 
 .checkbox-item input[type="checkbox"] {
@@ -116,7 +172,7 @@ select:focus {
 }
 
 .checkbox-item.checked {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
     color: white;
     border-color: transparent;
 }
@@ -153,7 +209,7 @@ select:focus {
 /* Loading spinner */
 .spinner {
     border: 4px solid #f3f3f3;
-    border-top: 4px solid #667eea;
+    border-top: 4px solid var(--primary-color);
     border-radius: 50%;
     width: 40px;
     height: 40px;
@@ -239,22 +295,47 @@ select:focus {
     cursor: pointer;
     transition: all 0.3s;
     border: 3px solid transparent;
+    position: relative;
 }
 
 .character-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-    border-color: #667eea;
+    border-color: var(--primary-color);
 }
 
 .character-card h3 {
     margin-bottom: 10px;
-    color: #667eea;
+    color: var(--primary-color);
 }
 
 .character-card p {
     margin: 5px 0;
     color: #666;
+}
+
+.character-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.delete-btn {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 50%;
+    transition: all 0.3s;
+    opacity: 0.6;
+}
+
+.delete-btn:hover {
+    opacity: 1;
+    background: rgba(255, 0, 0, 0.1);
+    transform: scale(1.1);
 }
 
 /* Theme selection */
@@ -277,7 +358,7 @@ select:focus {
 
 .theme-card:hover {
     transform: scale(1.05);
-    border-color: #667eea;
+    border-color: var(--primary-color);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
@@ -289,4 +370,52 @@ select:focus {
 .theme-card p {
     color: #666;
     font-size: 14px;
+}
+
+/* Modal styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.modal-content h3 {
+    margin-bottom: 15px;
+    color: #2c3e50;
+}
+
+.modal-content p {
+    margin-bottom: 25px;
+    color: #666;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5253 100%);
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, #ff5252 0%, #ff0000 100%);
 }

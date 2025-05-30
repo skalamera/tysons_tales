@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Character, StoryNode } from '../types';
+import { getUserId } from '../utils/userUtils';
 
 interface StoryDisplayProps {
     character: Character;
@@ -15,54 +16,147 @@ const StoryDisplay: React.FC<StoryDisplayProps> = ({ character, theme }) => {
     const [error, setError] = useState('');
     const [storyProgressId, setStoryProgressId] = useState<string>('');
     const [isPlaying, setIsPlaying] = useState(false);
+    const [loadingMessage, setLoadingMessage] = useState('Creating your adventure...');
+    const [storyTitle, setStoryTitle] = useState<string>('');
     const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
+    const hasStartedRef = useRef(false);
+    const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const messageIndexRef = useRef(0);
+    const [autoPlayEnabled, setAutoPlayEnabled] = useState(() => {
+        // Get auto-play preference from localStorage, default to true
+        const saved = localStorage.getItem('autoPlayAudio');
+        return saved === null ? true : saved === 'true';
+    });
+
+    // Define loading messages for different contexts
+    const startStoryMessages = [
+        'Creating your adventure...',
+        'Imagining magical worlds...',
+        'Writing your story...',
+        'Painting beautiful scenes...',
+        'Adding finishing touches...',
+        'Almost ready...'
+    ];
+
+    const continueStoryMessages = [
+        'Writing the next chapter...',
+        'Creating magical illustrations...',
+        'Weaving your choices into the tale...',
+        'Painting new scenes...',
+        'Preparing your adventure...',
+        'Almost there...'
+    ];
+
+    // Function to cycle through loading messages
+    const startLoadingMessages = (messages: string[]) => {
+        messageIndexRef.current = 0;
+        setLoadingMessage(messages[0]);
+
+        // Clear any existing timer
+        if (loadingTimerRef.current) {
+            clearInterval(loadingTimerRef.current);
+        }
+
+        // Set up new timer to cycle through messages
+        loadingTimerRef.current = setInterval(() => {
+            messageIndexRef.current = (messageIndexRef.current + 1) % messages.length;
+            setLoadingMessage(messages[messageIndexRef.current]);
+        }, 2000); // Change message every 2 seconds
+    };
+
+    // Clean up timer when component unmounts or loading completes
+    const stopLoadingMessages = () => {
+        if (loadingTimerRef.current) {
+            clearInterval(loadingTimerRef.current);
+            loadingTimerRef.current = null;
+        }
+    };
 
     useEffect(() => {
-        startStory();
+        // Prevent double initialization in StrictMode
+        if (!hasStartedRef.current) {
+            hasStartedRef.current = true;
+            startStory();
+        }
+
         return () => {
             // Clean up speech synthesis on unmount
             if (window.speechSynthesis) {
                 window.speechSynthesis.cancel();
             }
+            // Clean up loading timer
+            stopLoadingMessages();
         };
     }, []);
 
     useEffect(() => {
-        if (currentNode && currentNode.story_text) {
-            // Auto-play narration when new text appears
+        if (currentNode && currentNode.story_text && autoPlayEnabled) {
+            // Auto-play narration when new text appears (only if auto-play is enabled)
             speakText(currentNode.story_text);
         }
-    }, [currentNode]);
+    }, [currentNode?.current_node_id]); // Only trigger when the node ID changes, not the entire object
+
+    // Debug effect to log loading state changes
+    useEffect(() => {
+        console.log('Loading state changed:', loading, 'Loading message:', loadingMessage);
+    }, [loading, loadingMessage]);
 
     const startStory = async () => {
+        console.log('startStory: Setting loading to true');
+        setLoading(true);
+        startLoadingMessages(startStoryMessages);
+
         try {
             const response = await axios.post('/api/story/start', {
-                character,
+                character: {
+                    ...character,
+                    user_id: getUserId()
+                },
                 theme
             });
 
             setStoryProgressId(response.data.story_progress_id);
+            // Set the story title from the first response
+            if (response.data.title) {
+                setStoryTitle(response.data.title);
+            }
             setCurrentNode({
+                title: response.data.title,
                 story_text: response.data.story_text,
                 illustration_url: response.data.illustration_url,
                 illustration_prompt: response.data.illustration_prompt,
                 choices: response.data.choices,
                 current_node_id: response.data.current_node_id
             });
-            setLoading(false);
+            console.log('startStory: Success! Setting loading to false');
+            stopLoadingMessages();  // Stop the message cycling
+            setLoading(false);  // Hide loading screen
         } catch (err) {
+            console.error('startStory: Error occurred', err);
+            stopLoadingMessages();  // Stop the message cycling
             setError('Failed to start the story');
-            setLoading(false);
+            setLoading(false);  // Hide loading screen
         }
     };
 
     const makeChoice = async (nextNodeId: string) => {
+        // Stop any ongoing speech when making a choice
+        if (window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+            setIsPlaying(false);
+        }
+
+        console.log('makeChoice: Setting loading to true');
         setLoading(true);
+        startLoadingMessages(continueStoryMessages);
 
         try {
             const response = await axios.post('/api/story/choice', {
-                character,
-                current_node_id: currentNode?.current_node_id,
+                character: {
+                    ...character,
+                    user_id: getUserId()
+                },
+                theme,
                 next_node_id: nextNodeId,
                 story_progress_id: storyProgressId
             });
@@ -74,10 +168,14 @@ const StoryDisplay: React.FC<StoryDisplayProps> = ({ character, theme }) => {
                 choices: response.data.choices,
                 current_node_id: response.data.current_node_id
             });
-            setLoading(false);
+            console.log('makeChoice: Success! Setting loading to false');
+            stopLoadingMessages();  // Stop the message cycling
+            setLoading(false);  // Hide loading screen
         } catch (err) {
+            console.error('makeChoice: Error occurred', err);
+            stopLoadingMessages();  // Stop the message cycling
             setError('Failed to continue the story');
-            setLoading(false);
+            setLoading(false);  // Hide loading screen
         }
     };
 
@@ -86,27 +184,40 @@ const StoryDisplay: React.FC<StoryDisplayProps> = ({ character, theme }) => {
             // Cancel any ongoing speech
             window.speechSynthesis.cancel();
 
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'en-US';
-            utterance.rate = 0.9; // Slightly slower for children
-            utterance.pitch = 1.1; // Slightly higher pitch
+            // Split text into sentences (handling common punctuation)
+            const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
 
-            // Try to find a child-friendly voice
-            const voices = window.speechSynthesis.getVoices();
-            const preferredVoice = voices.find(voice =>
-                voice.name.includes('Female') || voice.name.includes('Samantha') || voice.name.includes('Victoria')
-            );
+            // Create an array of utterances
+            const utterances = sentences.map(sentence => {
+                const utterance = new SpeechSynthesisUtterance(sentence.trim());
+                utterance.lang = 'en-US';
+                utterance.rate = 0.9; // Slightly slower for children
+                utterance.pitch = 1.1; // Slightly higher pitch
 
-            if (preferredVoice) {
-                utterance.voice = preferredVoice;
-            }
+                // Try to find a child-friendly voice
+                const voices = window.speechSynthesis.getVoices();
+                const preferredVoice = voices.find(voice =>
+                    voice.name.includes('Female') || voice.name.includes('Samantha') || voice.name.includes('Victoria')
+                );
 
-            utterance.onstart = () => setIsPlaying(true);
-            utterance.onend = () => setIsPlaying(false);
-            utterance.onerror = () => setIsPlaying(false);
+                if (preferredVoice) {
+                    utterance.voice = preferredVoice;
+                }
 
-            speechSynthesisRef.current = utterance;
-            window.speechSynthesis.speak(utterance);
+                return utterance;
+            });
+
+            // Set up event handlers for the first utterance
+            utterances[0].onstart = () => setIsPlaying(true);
+            utterances[utterances.length - 1].onend = () => setIsPlaying(false);
+            utterances[utterances.length - 1].onerror = () => setIsPlaying(false);
+
+            // Queue all utterances
+            utterances.forEach(utterance => {
+                window.speechSynthesis.speak(utterance);
+            });
+
+            speechSynthesisRef.current = utterances[0];
         }
     };
 
@@ -140,14 +251,38 @@ const StoryDisplay: React.FC<StoryDisplayProps> = ({ character, theme }) => {
     return (
         <>
             <div className="page-header">
-                <h1>{character.name}'s Adventure</h1>
+                <h1>{storyTitle || `${character.name}'s Adventure`}</h1>
                 <p>An interactive story just for you!</p>
             </div>
 
             <div className="container">
                 {loading ? (
-                    <div style={{ textAlign: 'center' }}>
-                        <div className="spinner"></div>
+                    <div className="loading-container" style={{ textAlign: 'center', padding: '60px 20px' }}>
+                        <div className="loading-content" style={{ maxWidth: '400px', margin: '0 auto' }}>
+                            <div className="spinner" style={{ width: '60px', height: '60px', margin: '0 auto 30px' }}></div>
+                            <h3 style={{ color: '#ffffff', marginBottom: '20px' }}>{loadingMessage}</h3>
+                            <div className="loading-progress" style={{
+                                width: '100%',
+                                height: '8px',
+                                backgroundColor: '#e0e0e0',
+                                borderRadius: '4px',
+                                overflow: 'hidden',
+                                marginTop: '20px'
+                            }}>
+                                <div className="loading-bar" style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    backgroundColor: '#667eea',
+                                    animation: 'loadingAnimation 2s ease-in-out infinite'
+                                }}></div>
+                            </div>
+                            <style>{`
+                                @keyframes loadingAnimation {
+                                    0% { transform: translateX(-100%); }
+                                    100% { transform: translateX(100%); }
+                                }
+                            `}</style>
+                        </div>
                     </div>
                 ) : error ? (
                     <div className="card" style={{ textAlign: 'center' }}>
@@ -156,6 +291,17 @@ const StoryDisplay: React.FC<StoryDisplayProps> = ({ character, theme }) => {
                     </div>
                 ) : currentNode ? (
                     <div className="story-container">
+                        {/* Leave Story Button - Centered */}
+                        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                            <button
+                                className="btn btn-secondary"
+                                onClick={() => navigate('/')}
+                                style={{ fontSize: '16px', padding: '8px 16px' }}
+                            >
+                                Leave Story
+                            </button>
+                        </div>
+
                         {/* Story Illustration */}
                         {currentNode.illustration_url && (
                             <img

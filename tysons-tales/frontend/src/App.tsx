@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Welcome from './components/Welcome';
 import CharacterForm from './components/CharacterForm';
@@ -11,6 +11,14 @@ import './App.css';
 function App() {
     const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
     const [selectedTheme, setSelectedTheme] = useState<string>('');
+
+    useEffect(() => {
+        // Initialize theme on app load
+        const savedTheme = localStorage.getItem('colorTheme');
+        if (savedTheme && savedTheme !== 'purple') {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+    }, []);
 
     return (
         <Router>

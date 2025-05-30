@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Character } from '../types';
+import { getUserId } from '../utils/userUtils';
 
 interface CharacterSelectProps {
     onCharacterSelected: (character: Character) => void;
@@ -12,6 +13,7 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({ onCharacterSelected }
     const [characters, setCharacters] = useState<Character[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
 
     useEffect(() => {
         loadCharacters();
@@ -19,8 +21,8 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({ onCharacterSelected }
 
     const loadCharacters = async () => {
         try {
-            // For now, using a default user ID. In a real app, this would come from authentication
-            const response = await axios.get('/api/characters/default-user');
+            const userId = getUserId(); // Get the user ID from localStorage
+            const response = await axios.get(`http://localhost:5000/api/characters/${userId}`);
             setCharacters(response.data.characters);
             setLoading(false);
         } catch (err) {
@@ -32,6 +34,27 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({ onCharacterSelected }
     const selectCharacter = (character: Character) => {
         onCharacterSelected(character);
         navigate('/theme');
+    };
+
+    const handleDeleteClick = (e: React.MouseEvent, character: Character) => {
+        e.stopPropagation(); // Prevent character selection when clicking delete
+        setCharacterToDelete(character);
+    };
+
+    const confirmDelete = async () => {
+        if (!characterToDelete?.id) return;
+
+        try {
+            await axios.delete(`http://localhost:5000/api/characters/${characterToDelete.id}`);
+            setCharacters(characters.filter(c => c.id !== characterToDelete.id));
+            setCharacterToDelete(null);
+        } catch (err) {
+            setError('Failed to delete character');
+        }
+    };
+
+    const cancelDelete = () => {
+        setCharacterToDelete(null);
     };
 
     const getRoleEmoji = (role: string) => {
@@ -87,11 +110,21 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({ onCharacterSelected }
                                     className="character-card"
                                     onClick={() => selectCharacter(character)}
                                 >
-                                    <h3>
-                                        {getRoleEmoji(character.role)} {character.name}
-                                    </h3>
+                                    <div className="character-card-header">
+                                        <h3>
+                                            {getRoleEmoji(character.role)} {character.name}
+                                        </h3>
+                                        <button
+                                            className="delete-btn"
+                                            onClick={(e) => handleDeleteClick(e, character)}
+                                            title="Delete character"
+                                        >
+                                            🗑️
+                                        </button>
+                                    </div>
                                     <p><strong>Role:</strong> {character.role}</p>
                                     <p><strong>Gender:</strong> {character.gender}</p>
+                                    <p><strong>Age:</strong> {character.age} years old</p>
                                     <p><strong>Traits:</strong> {character.personalities.join(', ')}</p>
                                     {character.favorite_color && (
                                         <p><strong>Favorite Color:</strong> {character.favorite_color}</p>
@@ -112,6 +145,24 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({ onCharacterSelected }
                             </button>
                         </div>
                     </>
+                )}
+
+                {/* Delete Confirmation Modal */}
+                {characterToDelete && (
+                    <div className="modal-overlay">
+                        <div className="modal-content">
+                            <h3>Delete Character?</h3>
+                            <p>Are you sure you want to delete {characterToDelete.name}? This cannot be undone.</p>
+                            <div className="modal-buttons">
+                                <button className="btn btn-secondary" onClick={cancelDelete}>
+                                    Cancel
+                                </button>
+                                <button className="btn btn-danger" onClick={confirmDelete}>
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 )}
             </div>
         </>

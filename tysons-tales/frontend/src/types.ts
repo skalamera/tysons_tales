@@ -3,6 +3,7 @@ export interface Character {
     name: string;
     gender: 'girl' | 'boy' | 'neutral';
     role: string;
+    age: number;
     personalities: string[];
     favorite_color?: string;
     favorite_animal?: string;
@@ -10,6 +11,7 @@ export interface Character {
 }
 
 export interface StoryNode {
+    title?: string;
     story_text: string;
     illustration_url: string;
     illustration_prompt: string;

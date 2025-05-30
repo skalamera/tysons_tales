@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -25,6 +26,7 @@ db.serialize(() => {
     name TEXT NOT NULL,
     gender TEXT NOT NULL,
     role TEXT NOT NULL,
+    age INTEGER NOT NULL,
     personalities TEXT,
     favorite_color TEXT,
     favorite_animal TEXT,
@@ -42,11 +44,25 @@ db.serialize(() => {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
+
+    // Add age column to existing characters table if it doesn't exist
+    db.run(`ALTER TABLE characters ADD COLUMN age INTEGER`, (err) => {
+        if (err) {
+            // Column might already exist, which is fine
+            if (!err.message.includes('duplicate column name')) {
+                console.log('Note: Could not add age column:', err.message);
+            }
+        } else {
+            console.log('Added age column to characters table');
+            // Set default age for existing characters
+            db.run(`UPDATE characters SET age = 7 WHERE age IS NULL`);
+        }
+    });
 });
 
 // Import story engine and story data
 const StoryEngine = require('./storyEngine');
-const storyTemplates = require('./storyTemplates');
+// const storyTemplates = require('./storyTemplates'); // Will not be passed to StoryEngine constructor anymore
 
 // API Routes
 
@@ -57,22 +73,58 @@ app.get('/api/health', (req, res) => {
 
 // Character endpoints
 app.post('/api/characters', (req, res) => {
-    const { user_id, name, gender, role, personalities, favorite_color, favorite_animal } = req.body;
+    console.log('POST /api/characters - Request body:', req.body);
+
+    const { user_id, name, gender, role, age, personalities, favorite_color, favorite_animal } = req.body;
+
+    // Validate required fields
+    if (!name || !gender || !role || age === undefined || age === null) {
+        console.error('Missing required fields:', { name, gender, role, age });
+        return res.status(400).json({
+            error: 'Missing required fields',
+            details: {
+                name: !name ? 'Name is required' : null,
+                gender: !gender ? 'Gender is required' : null,
+                role: !role ? 'Role is required' : null,
+                age: (age === undefined || age === null) ? 'Age is required' : null
+            }
+        });
+    }
+
+    // Ensure personalities is an array
+    const personalitiesArray = Array.isArray(personalities) ? personalities : [];
+
     const id = uuidv4();
 
+    const values = [
+        id,
+        user_id || null,
+        name,
+        gender,
+        role,
+        age,
+        JSON.stringify(personalitiesArray),
+        favorite_color || null,
+        favorite_animal || null
+    ];
+
+    console.log('Inserting character with values:', values);
+
     db.run(
-        `INSERT INTO characters (id, user_id, name, gender, role, personalities, favorite_color, favorite_animal) 
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, user_id || null, name, gender, role, JSON.stringify(personalities), favorite_color, favorite_animal],
+        `INSERT INTO characters (id, user_id, name, gender, role, age, personalities, favorite_color, favorite_animal) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        values,
         (err) => {
             if (err) {
-                console.error(err);
-                return res.status(500).json({ error: 'Failed to save character' });
+                console.error('Database error:', err);
+                return res.status(500).json({ error: 'Failed to save character', details: err.message });
             }
+
+            console.log('Character saved successfully:', id);
             res.json({
                 id,
                 message: 'Character saved successfully',
-                character: { id, name, gender, role, personalities, favorite_color, favorite_animal }
+                character: { id, name, gender, role, age, personalities: personalitiesArray, favorite_color, favorite_animal }
             });
         }
     );
@@ -82,7 +134,7 @@ app.get('/api/characters/:userId', (req, res) => {
     const { userId } = req.params;
 
     db.all(
-        `SELECT * FROM characters WHERE user_id = ? OR user_id IS NULL ORDER BY created_at DESC`,
+        `SELECT * FROM characters WHERE user_id = ? ORDER BY created_at DESC`,
         [userId],
         (err, rows) => {
             if (err) {
@@ -100,16 +152,37 @@ app.get('/api/characters/:userId', (req, res) => {
     );
 });
 
+// Add delete character endpoint
+app.delete('/api/characters/:characterId', (req, res) => {
+    const { characterId } = req.params;
+
+    db.run(
+        `DELETE FROM characters WHERE id = ?`,
+        [characterId],
+        function (err) {
+            if (err) {
+                console.error(err);
+                return res.status(500).json({ error: 'Failed to delete character' });
+            }
+            if (this.changes === 0) {
+                return res.status(404).json({ error: 'Character not found' });
+            }
+            res.json({ message: 'Character deleted successfully' });
+        }
+    );
+});
+
 // Story endpoints
-app.post('/api/story/start', (req, res) => {
+app.post('/api/story/start', async (req, res) => {
     const { character, theme } = req.body;
 
     try {
-        const storyEngine = new StoryEngine(storyTemplates, character);
-        const initialNode = storyEngine.getInitialStoryNode(theme);
+        // StoryTemplates is no longer passed if using AI for generation
+        const storyEngine = new StoryEngine(character);
+        const initialNode = await storyEngine.getInitialStoryNode(theme);
 
         if (!initialNode) {
-            return res.status(404).json({ error: 'Story theme not found' });
+            return res.status(404).json({ error: 'Story theme not found or AI error' });
         }
 
         // Save story progress
@@ -128,20 +201,20 @@ app.post('/api/story/start', (req, res) => {
             ...initialNode
         });
     } catch (error) {
-        console.error(error);
+        console.error("Error in /api/story/start:", error);
         res.status(500).json({ error: 'Failed to start story' });
     }
 });
 
-app.post('/api/story/choice', (req, res) => {
-    const { character, current_node_id, next_node_id, story_progress_id } = req.body;
+app.post('/api/story/choice', async (req, res) => {
+    const { character, theme, next_node_id, story_progress_id } = req.body;
 
     try {
-        const storyEngine = new StoryEngine(storyTemplates, character);
-        const nextNode = storyEngine.getStoryNode(next_node_id);
+        const storyEngine = new StoryEngine(character);
+        const nextNode = await storyEngine.getNextStoryNode(theme, next_node_id);
 
         if (!nextNode) {
-            return res.status(404).json({ error: 'Story node not found' });
+            return res.status(404).json({ error: 'Story node not found or AI error' });
         }
 
         // Update story progress
@@ -150,7 +223,7 @@ app.post('/api/story/choice', (req, res) => {
                 `UPDATE story_progress 
          SET current_node_id = ?, updated_at = CURRENT_TIMESTAMP 
          WHERE id = ?`,
-                [next_node_id, story_progress_id],
+                [nextNode.current_node_id, story_progress_id],
                 (err) => {
                     if (err) console.error('Failed to update story progress:', err);
                 }
@@ -159,7 +232,7 @@ app.post('/api/story/choice', (req, res) => {
 
         res.json(nextNode);
     } catch (error) {
-        console.error(error);
+        console.error("Error in /api/story/choice:", error);
         res.status(500).json({ error: 'Failed to progress story' });
     }
 });
