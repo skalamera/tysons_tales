@@ -1,0 +1,15 @@
+{
+    "short_name": "Tyson's Tales",
+    "name": "Tyson's Tales - Interactive Stories",
+    "icons": [
+        {
+            "src": "favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml"
+        }
+    ],
+    "start_url": ".",
+    "display": "standalone",
+    "theme_color": "#000000",
+    "background_color": "#ffffff"
+}
