@@ -1,145 +1,145 @@
+// skalamera/tysons_tales/tysons_tales-main/tysons-tales/backend/storyEngine.js
+// Remove or comment out Gemini-specific imports if no longer used for text
+// const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require("@google/generative-ai");
+const OpenAI = require('openai'); // Already imported for DALL-E
+
+// Ensure API keys are loaded (typically in server.js via dotenv)
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+});
+
+// Safety settings for Gemini are not applicable here, OpenAI has its own moderation
+
 class StoryEngine {
-    constructor(storyTemplates, character) {
-        this.storyTemplates = storyTemplates;
+    constructor(character) {
         this.character = character;
         this.pronouns = this._getPronouns(character.gender);
     }
 
     _getPronouns(gender) {
+        // ... (your existing _getPronouns logic remains the same)
         if (gender === 'boy') {
-            return {
-                subject: 'he',
-                object: 'him',
-                possessive: 'his',
-                reflexive: 'himself',
-                Subject: 'He',
-                Possessive: 'His'
-            };
+            return { subject: 'he', object: 'him', possessive: 'his', reflexive: 'himself', Subject: 'He', Possessive: 'His' };
         } else if (gender === 'girl') {
-            return {
-                subject: 'she',
-                object: 'her',
-                possessive: 'her',
-                reflexive: 'herself',
-                Subject: 'She',
-                Possessive: 'Her'
-            };
+            return { subject: 'she', object: 'her', possessive: 'her', reflexive: 'herself', Subject: 'She', Possessive: 'Her' };
         } else {
-            return {
-                subject: 'they',
-                object: 'them',
-                possessive: 'their',
-                reflexive: 'themself',
-                Subject: 'They',
-                Possessive: 'Their'
-            };
+            return { subject: 'they', object: 'them', possessive: 'their', reflexive: 'themself', Subject: 'They', Possessive: 'Their' };
         }
     }
 
-    _personalizeText(textTemplate) {
-        let text = textTemplate;
+    // This prompt construction is now geared towards OpenAI's chat completion
+    _constructOpenAIPromptMessages(theme, previousContext = "") {
+        const systemMessage = `You are a storyteller creating a personalized, interactive 'choose your own adventure' story for a child.
+The main character is ${this.character.name}, a ${this.character.gender} who is a ${this.character.role}.
+${this.character.name}'s personality traits are: ${this.character.personalities.join(', ')}.
+${this.character.favorite_color ? `${this.character.name}'s favorite color is ${this.character.favorite_color}.` : ''}
+${this.character.favorite_animal ? `${this.character.name}'s favorite animal is ${this.character.favorite_animal}. This animal could be a friend or guide.` : ''}
+The story theme is: ${theme}.
+The story should be engaging, positive, and age-appropriate for a young child (around 4-8 years old).
+Use simple language. Incorporate ${this.character.name}'s name, role, and personality into the narrative. Use correct pronouns: ${this.pronouns.subject}/${this.pronouns.object}/${this.pronouns.possessive}.
+Your response MUST be a valid JSON object with the following keys: "story_text", "choices" (an array of objects with "text" and "next_prompt_context"), and "illustration_prompt" (a detailed prompt for DALL-E for a children's book style illustration).`;
 
-        // Character details
-        text = text.replace(/{character_name}/g, this.character.name || 'Hero');
-        text = text.replace(/{character_role}/g, this.character.role || 'adventurer');
+        const userMessage = `${previousContext}
 
-        // Pronouns
-        text = text.replace(/{he_she_they}/g, this.pronouns.subject);
-        text = text.replace(/{He_She_They}/g, this.pronouns.Subject);
-        text = text.replace(/{him_her_them}/g, this.pronouns.object);
-        text = text.replace(/{his_her_their}/g, this.pronouns.possessive);
-        text = text.replace(/{His_Her_Their}/g, this.pronouns.Possessive);
-        text = text.replace(/{himself_herself_themself}/g, this.pronouns.reflexive);
+Please provide the next part of the story for ${this.character.name}.
+Include 2 to 3 choices for the user.
+And provide a detailed visual prompt for DALL-E for this scene, in a vibrant, friendly children's book style.
+Return your entire response as a single JSON object.`;
 
-        // Personality traits
-        if (this.character.personalities && this.character.personalities.length > 0) {
-            const randomPersonality = this.character.personalities[
-                Math.floor(Math.random() * this.character.personalities.length)
-            ];
-            text = text.replace(/{personality_trait}/g, randomPersonality);
-        } else {
-            text = text.replace(/{personality_trait}/g, 'brave');
-        }
-
-        // Favorites
-        text = text.replace(/{favorite_color}/g, this.character.favorite_color || 'blue');
-        text = text.replace(/{favorite_animal}/g, this.character.favorite_animal || 'dog');
-
-        return text;
+        return [
+            { role: "system", content: systemMessage },
+            { role: "user", content: userMessage }
+        ];
     }
 
-    getStoryNode(nodeId) {
-        const nodeData = this.storyTemplates[nodeId];
-        if (!nodeData) {
-            return null;
-        }
+    async _generateStorySegmentWithOpenAI(theme, previousContext = "") {
+        const messages = this._constructOpenAIPromptMessages(theme, previousContext);
+        console.log("Sending prompt to OpenAI:", JSON.stringify(messages, null, 2));
 
-        const personalizedText = this._personalizeText(nodeData.text_template);
-        const illustrationPrompt = this._personalizeText(nodeData.illustration_prompt_template);
-
-        // Process choices
-        const availableChoices = [];
-        for (const choice of nodeData.choices || []) {
-            // Check conditions if any
-            if (choice.conditions) {
-                let conditionsMet = true;
-
-                // Check personality conditions
-                if (choice.conditions.personality) {
-                    const hasPersonality = this.character.personalities?.includes(choice.conditions.personality);
-                    if (!hasPersonality) {
-                        conditionsMet = false;
-                    }
-                }
-
-                // Check role conditions
-                if (choice.conditions.role && this.character.role !== choice.conditions.role) {
-                    conditionsMet = false;
-                }
-
-                if (!conditionsMet) {
-                    continue;
-                }
-            }
-
-            availableChoices.push({
-                text: this._personalizeText(choice.choice_text),
-                next_node_id: choice.next_node_id
+        try {
+            const completion = await openai.chat.completions.create({
+                model: "gpt-3.5-turbo-1106", // Or "gpt-4-turbo-preview", "gpt-4" etc.
+                // gpt-3.5-turbo-1106 is good for forcing JSON output.
+                messages: messages,
+                response_format: { type: "json_object" }, // For models that support JSON mode
             });
+
+            const content = completion.choices[0].message.content;
+            console.log("Received from OpenAI:", content);
+            if (content) {
+                return JSON.parse(content);
+            } else {
+                throw new Error("OpenAI returned empty content.");
+            }
+        } catch (error) {
+            console.error("Error generating story segment with OpenAI:", error.response ? error.response.data : error.message);
+            // Fallback structure
+            return {
+                story_text: `Once upon a time, ${this.character.name} the ${this.character.role} wanted an adventure, but the storyteller was napping! Try again?`,
+                choices: [{ text: "Wake up the storyteller (try again)", next_prompt_context: "Let's restart this part of the story." }],
+                illustration_prompt: `A whimsical drawing of ${this.character.name} looking sleepy, children's book style.`
+            };
         }
+    }
+
+    async _generateImageWithDalle(promptForDalle) {
+        // ... (your existing _generateImageWithDalle logic remains the same)
+        console.log("Attempting to generate image with DALL-E using prompt:", promptForDalle);
+        try {
+            const response = await openai.images.generate({
+                model: "dall-e-3",
+                prompt: promptForDalle,
+                n: 1,
+                size: "1024x1024",
+                quality: "standard",
+                response_format: "url",
+            });
+            if (response.data && response.data[0] && response.data[0].url) {
+                console.log("DALL-E image URL:", response.data[0].url);
+                return response.data[0].url;
+            } else {
+                throw new Error("DALL-E response did not contain an image URL.");
+            }
+        } catch (error) {
+            console.error("Error generating image with DALL-E:", error.response ? error.response.data : error.message);
+            return `https://via.placeholder.com/512x512/FF0000/FFFFFF?text=DALL-E+Error`;
+        }
+    }
+
+    async getInitialStoryNode(theme) {
+        const initialOpenAIPromptContext = `The story is just beginning for ${this.character.name}. Set the scene for their adventure in the world of ${theme}.`;
+        const openAIResponse = await this._generateStorySegmentWithOpenAI(theme, initialOpenAIPromptContext);
+
+        const imageUrl = await this._generateImageWithDalle(openAIResponse.illustration_prompt);
 
         return {
-            story_text: personalizedText,
-            illustration_prompt: illustrationPrompt,
-            illustration_url: nodeData.illustration_url || this._getPlaceholderImage(nodeId),
-            choices: availableChoices,
-            current_node_id: nodeId
+            story_text: openAIResponse.story_text,
+            illustration_prompt: openAIResponse.illustration_prompt,
+            illustration_url: imageUrl,
+            choices: openAIResponse.choices.map(choice => ({
+                text: choice.text,
+                next_node_id: choice.next_prompt_context // This context will be used for the next OpenAI call
+            })),
+            current_node_id: theme + "_start_openai_dalle"
         };
     }
 
-    getInitialStoryNode(theme) {
-        const startNodeId = `${theme}_start`;
-        if (!this.storyTemplates[startNodeId]) {
-            return null;
-        }
-        return this.getStoryNode(startNodeId);
-    }
+    async getNextStoryNode(theme, choiceContext) {
+        const openAIResponse = await this._generateStorySegmentWithOpenAI(theme, `Previously, ${this.character.name} decided to: "${choiceContext}". Now, continue the story.`);
 
-    _getPlaceholderImage(nodeId) {
-        // Return theme-appropriate placeholder images
-        if (nodeId.includes('fantasy')) {
-            return 'https://via.placeholder.com/512x512/9b59b6/ffffff?text=Fantasy+Scene';
-        } else if (nodeId.includes('space')) {
-            return 'https://via.placeholder.com/512x512/2c3e50/ffffff?text=Space+Adventure';
-        } else if (nodeId.includes('forest')) {
-            return 'https://via.placeholder.com/512x512/27ae60/ffffff?text=Forest+Mystery';
-        } else if (nodeId.includes('ocean')) {
-            return 'https://via.placeholder.com/512x512/3498db/ffffff?text=Ocean+World';
-        } else if (nodeId.includes('timetravel')) {
-            return 'https://via.placeholder.com/512x512/e74c3c/ffffff?text=Time+Travel';
-        }
-        return 'https://via.placeholder.com/512x512/95a5a6/ffffff?text=Story+Scene';
+        const imageUrl = await this._generateImageWithDalle(openAIResponse.illustration_prompt);
+
+        return {
+            story_text: openAIResponse.story_text,
+            illustration_prompt: openAIResponse.illustration_prompt,
+            illustration_url: imageUrl,
+            choices: openAIResponse.choices.map(choice => ({
+                text: choice.text,
+                next_node_id: choice.next_prompt_context
+            })),
+            current_node_id: theme + "_continue_openai_dalle"
+        };
     }
 }
 
-module.exports = StoryEngine; 
+module.exports = StoryEngine;
