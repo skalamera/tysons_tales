@@ -419,3 +419,62 @@ select:focus {
 .btn-danger:hover {
     background: linear-gradient(135deg, #ff5252 0%, #ff0000 100%);
 }
+
+/* Homepage animations */
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0) rotate(0deg);
+    }
+
+    50% {
+        transform: translateY(-20px) rotate(10deg);
+    }
+}
+
+@keyframes twinkle {
+
+    0%,
+    100% {
+        opacity: 0.4;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.2);
+    }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Page header styles */
+.page-header {
+    text-align: center;
+    padding: 30px 20px;
+    margin-bottom: 20px;
+}
+
+.page-header h1 {
+    font-size: 3.5rem;
+    color: white;
+    text-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    margin-bottom: 10px;
+}
+
+.page-header p {
+    font-size: 1.3rem;
+    color: white;
+    opacity: 0.9;
+}

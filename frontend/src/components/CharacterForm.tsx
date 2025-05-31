@@ -33,12 +33,24 @@ const CharacterForm: React.FC<CharacterFormProps> = ({ onCharacterSaved }) => {
         { value: 'pirate', label: 'Adventurous Pirate' },
         { value: 'explorer', label: 'Fearless Explorer' },
         { value: 'scientist', label: 'Smart Scientist' },
-        { value: 'artist', label: 'Creative Artist' }
+        { value: 'artist', label: 'Creative Artist' },
+        { value: 'chef', label: 'Talented Chef' },
+        { value: 'musician', label: 'Musical Maestro' },
+        { value: 'inventor', label: 'Inventive Inventor' },
+        { value: 'athlete', label: 'Energetic Athlete' },
+        { value: 'builder', label: 'Skilled Builder' },
+        { value: 'doctor', label: 'Caring Doctor' },
+        { value: 'pilot', label: 'Daring Pilot' },
+        { value: 'zookeeper', label: 'Animal-Loving Zookeeper' },
+        { value: 'gardener', label: 'Green-Thumb Gardener' },
+        { value: 'superhero', label: 'Mighty Superhero' }
     ];
 
     const personalityTraits = [
         'brave', 'curious', 'kind', 'funny', 'smart',
-        'creative', 'adventurous', 'friendly', 'determined', 'imaginative'
+        'creative', 'adventurous', 'friendly', 'determined', 'imaginative',
+        'patient', 'silly', 'helpful', 'gentle', 'energetic',
+        'thoughtful', 'optimistic', 'careful', 'generous', 'honest'
     ];
 
     const handlePersonalityChange = (trait: string) => {

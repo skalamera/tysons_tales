@@ -228,22 +228,57 @@ app.post('/api/story/choice', async (req, res) => {
     const { character, theme, next_node_id, story_progress_id } = req.body;
 
     try {
+        // Fetch current choices_made for this story_progress_id
+        let stepsTaken = 0;
+        if (story_progress_id) {
+            const row = await new Promise((resolve, reject) => {
+                db.get(
+                    `SELECT choices_made FROM story_progress WHERE id = ?`,
+                    [story_progress_id],
+                    (err, row) => {
+                        if (err) reject(err);
+                        else resolve(row);
+                    }
+                );
+            });
+            if (row && row.choices_made) {
+                const choicesArr = JSON.parse(row.choices_made);
+                stepsTaken = Array.isArray(choicesArr) ? choicesArr.length : 0;
+            }
+        }
+
+        // Set the cap
+        const STORY_LENGTH_CAP = 7;
         const storyEngine = new StoryEngine(character);
-        const nextNode = await storyEngine.getNextStoryNode(theme, next_node_id);
+        const nextNode = await storyEngine.getNextStoryNode(theme, next_node_id, stepsTaken + 1, STORY_LENGTH_CAP);
 
         if (!nextNode) {
             return res.status(404).json({ error: 'Story node not found or AI error' });
         }
 
-        // Update story progress
+        // Update story progress (add this choice to choices_made)
         if (story_progress_id) {
-            db.run(
-                `UPDATE story_progress 
-         SET current_node_id = ?, updated_at = CURRENT_TIMESTAMP 
-         WHERE id = ?`,
-                [nextNode.current_node_id, story_progress_id],
-                (err) => {
-                    if (err) console.error('Failed to update story progress:', err);
+            // Add the new choice to choices_made
+            db.get(
+                `SELECT choices_made FROM story_progress WHERE id = ?`,
+                [story_progress_id],
+                (err, row) => {
+                    let updatedChoices = [];
+                    if (!err && row && row.choices_made) {
+                        try {
+                            updatedChoices = JSON.parse(row.choices_made);
+                        } catch (e) { }
+                    }
+                    updatedChoices.push(next_node_id);
+                    db.run(
+                        `UPDATE story_progress 
+                         SET current_node_id = ?, choices_made = ?, updated_at = CURRENT_TIMESTAMP 
+                         WHERE id = ?`,
+                        [nextNode.current_node_id, JSON.stringify(updatedChoices), story_progress_id],
+                        (err) => {
+                            if (err) console.error('Failed to update story progress:', err);
+                        }
+                    );
                 }
             );
         }
@@ -262,7 +297,17 @@ app.get('/api/themes', (req, res) => {
         { id: 'space', name: 'Space Adventure', description: 'Explore the cosmos and meet alien friends' },
         { id: 'forest', name: 'Mysterious Forest', description: 'Discover secrets in an enchanted woodland' },
         { id: 'ocean', name: 'Undersea World', description: 'Dive deep and swim with sea creatures' },
-        { id: 'timetravel', name: 'Time Travel', description: 'Journey through different eras of history' }
+        { id: 'timetravel', name: 'Time Travel', description: 'Journey through different eras of history' },
+        { id: 'vehicles', name: 'Talking Vehicles World', description: 'Adventures with talking cars, trucks, and construction vehicles' },
+        { id: 'dinosaurs', name: 'Dinosaur World', description: 'Exciting journeys with friendly dinosaurs' },
+        { id: 'pirates', name: 'Pirate Adventure', description: 'Sail the seven seas in search of treasure' },
+        { id: 'superhero', name: 'Superhero City', description: 'Save the day with amazing superpowers' },
+        { id: 'magic_school', name: 'Magic School', description: 'Learn spells and make magical friends' },
+        { id: 'safari', name: 'Safari Adventure', description: 'Meet wild animals on an African safari' },
+        { id: 'candyland', name: 'Candy Land', description: 'Explore a world made of sweets and treats' },
+        { id: 'robots', name: 'Robot Factory', description: 'Build and befriend helpful robots' },
+        { id: 'fairytale', name: 'Fairytale Land', description: 'Meet classic storybook characters' },
+        { id: 'arctic', name: 'Arctic Expedition', description: 'Explore icy lands with polar friends' }
     ];
     res.json({ themes });
 });

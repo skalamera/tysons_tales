@@ -21,6 +21,28 @@ class StoryEngine {
         }
     }
 
+    _getThemeDescription(theme) {
+        const themeDescriptions = {
+            'fantasy': 'Set in a magical kingdom with castles, dragons, wizards, and enchanted forests. Include elements like magic spells, royal quests, and mythical creatures.',
+            'space': 'Set in outer space with planets, spaceships, alien friends, and cosmic adventures. Include elements like zero gravity, star systems, and intergalactic travel.',
+            'forest': 'Set in a mysterious woodland with talking animals, hidden pathways, and nature magic. Include elements like ancient trees, forest creatures, and natural wonders.',
+            'ocean': 'Set underwater in the ocean with colorful coral reefs, sea creatures, and underwater cities. Include elements like submarines, mermaids, and ocean treasures.',
+            'timetravel': 'Set across different time periods with time machines, historical figures, and temporal paradoxes. Include elements like dinosaur ages, future cities, and time portals.',
+            'vehicles': 'Set in a world where vehicles are alive and can talk. Include friendly cars, trucks, construction vehicles, trains, and airplanes having adventures on roads, construction sites, and airports.',
+            'dinosaurs': 'Set in prehistoric times or a land where dinosaurs still exist. Include friendly dinosaurs like T-Rex, Triceratops, and Pterodactyls as characters in jungle and volcanic landscapes.',
+            'pirates': 'Set on the high seas with pirate ships, treasure maps, and island adventures. Include elements like parrots, treasure chests, and friendly sea battles.',
+            'superhero': 'Set in a modern city where the character has special powers. Include elements like saving people, fighting (gentle) villains, and using superpowers for good.',
+            'magic_school': 'Set in a school where students learn magic. Include elements like spell classes, magical creatures as pets, flying broomsticks, and enchanted classrooms.',
+            'safari': 'Set in the African savanna with lions, elephants, giraffes, and zebras. Include elements like safari vehicles, watering holes, and animal migrations.',
+            'candyland': 'Set in a world made entirely of candy and sweets. Include chocolate rivers, gummy bear citizens, candy cane forests, and ice cream mountains.',
+            'robots': 'Set in a futuristic world or factory with friendly robots. Include elements like robot assembly, circuits, gears, and helpful robot companions.',
+            'fairytale': 'Set in classic storybook lands with familiar fairytale elements. Include elements like enchanted cottages, magical beans, fairy godmothers, and talking mirrors.',
+            'arctic': 'Set in the Arctic or Antarctic with snow, ice, and polar animals. Include elements like igloos, Northern Lights, penguins, polar bears, and ice fishing.'
+        };
+
+        return themeDescriptions[theme] || `Set in a world themed around ${theme}. Be creative and include appropriate elements for this theme.`;
+    }
+
     // No longer using _personalizeText as AI will handle personalization based on the prompt.
     // The AI prompt will contain all personalization details.
 
@@ -37,12 +59,20 @@ class StoryEngine {
         // Age-appropriate content guidelines
         const ageGuidelines = this._getAgeAppropriateGuidelines();
 
+        const themeDescription = this._getThemeDescription(theme);
+
         const systemMessage = `You are a creative and engaging storyteller for children.
         ${characterDetails}
         ${ageGuidelines}
         The story theme is: ${theme}.
+        
+        IMPORTANT THEME GUIDANCE: ${themeDescription}
+        
         The story should be positive, magical, and age-appropriate, written in simple, easy-to-understand language.
         Incorporate ${this.character.name}'s characteristics naturally into the narrative. Use correct pronouns based on their gender (${this.pronouns.subject}/${this.pronouns.object}/${this.pronouns.possessive}).
+        
+        CRITICAL: The story MUST be set in the ${theme} world as described above. Do NOT default to generic forest or fantasy settings unless that is the specific theme.
+        
         Your response MUST be a single, valid JSON object. Do not include any text outside of this JSON object.
         The JSON object must have the following keys:
         1.  "title": A creative, engaging title for this story (5-8 words). Should be exciting and capture the essence of the adventure. Do not include the character's name in the title.
@@ -142,7 +172,7 @@ class StoryEngine {
 
         try {
             const completion = await openai.chat.completions.create({
-                model: "gpt-3.5-turbo-1106", // Good for JSON mode
+                model: "gpt-4o-mini", // Updated to use GPT-4o-mini
                 messages: messages,
                 response_format: { type: "json_object" },
                 temperature: 0.7, // Adjust for creativity
@@ -232,7 +262,18 @@ class StoryEngine {
         };
     }
 
-    async getNextStoryNode(theme, choiceContext) {
+    async getNextStoryNode(theme, choiceContext, stepCount = 1, stepCap = 7) {
+        // If the cap is reached, end the story
+        if (stepCount >= stepCap) {
+            // Generate a final ending node
+            return {
+                story_text: `What an amazing adventure! ${this.character.name} learned so much and made wonderful memories. The story comes to a happy end, but new adventures await!`,
+                illustration_prompt: `A magical storybook closing with sparkles and a rainbow, symbolizing the end of a wonderful journey. Children's book illustration style.`,
+                illustration_url: 'https://via.placeholder.com/512x512/CCCCCC/000000?text=The+End',
+                choices: [],
+                current_node_id: theme + '_ending'
+            };
+        }
         // choiceContext is the "next_prompt_context" from the user's selected choice
         const openAIResponse = await this._generateStorySegmentWithOpenAI(theme, choiceContext);
         if (!openAIResponse || !openAIResponse.illustration_prompt) {

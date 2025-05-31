@@ -42,7 +42,17 @@ const ThemeSelect: React.FC<ThemeSelectProps> = ({ character, onThemeSelected })
             space: '🚀',
             forest: '🌲',
             ocean: '🌊',
-            timetravel: '⏰'
+            timetravel: '⏰',
+            vehicles: '🚗',
+            dinosaurs: '🦕',
+            pirates: '🏴‍☠️',
+            superhero: '🦸',
+            magic_school: '🪄',
+            safari: '🦁',
+            candyland: '🍭',
+            robots: '🤖',
+            fairytale: '👸',
+            arctic: '🐧'
         };
         return emojis[themeId] || '✨';
     };
@@ -53,7 +63,17 @@ const ThemeSelect: React.FC<ThemeSelectProps> = ({ character, onThemeSelected })
             space: 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)',
             forest: 'linear-gradient(135deg, #27ae60 0%, #229954 100%)',
             ocean: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)',
-            timetravel: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)'
+            timetravel: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
+            vehicles: 'linear-gradient(135deg, #f39c12 0%, #d68910 100%)',
+            dinosaurs: 'linear-gradient(135deg, #16a085 0%, #138d75 100%)',
+            pirates: 'linear-gradient(135deg, #795548 0%, #5d4037 100%)',
+            superhero: 'linear-gradient(135deg, #e91e63 0%, #c2185b 100%)',
+            magic_school: 'linear-gradient(135deg, #673ab7 0%, #512da8 100%)',
+            safari: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
+            candyland: 'linear-gradient(135deg, #ff69b4 0%, #ff1493 100%)',
+            robots: 'linear-gradient(135deg, #607d8b 0%, #455a64 100%)',
+            fairytale: 'linear-gradient(135deg, #f06292 0%, #ec407a 100%)',
+            arctic: 'linear-gradient(135deg, #00bcd4 0%, #0097a7 100%)'
         };
         return colors[themeId] || 'linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%)';
     };
